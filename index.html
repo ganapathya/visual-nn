@@ -1,0 +1,1964 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Visual Neural Network - Layer Processing</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      .canvas-container {
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 16px;
+        margin: 8px;
+        background: #f9fafb;
+        min-height: 200px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+      }
+      .layer-canvas {
+        max-width: 100%;
+        max-height: 300px;
+        border: 1px solid #d1d5db;
+        border-radius: 4px;
+      }
+      .input-canvas {
+        border: 2px solid #3b82f6;
+        border-radius: 8px;
+        max-width: 100%;
+        max-height: 400px;
+      }
+      .kernel-visualization {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 2px;
+        width: 60px;
+        height: 60px;
+        margin: 8px auto;
+        border: 1px solid #d1d5db;
+        border-radius: 4px;
+        background: #f9fafb;
+      }
+      .kernel-cell {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 8px;
+        font-weight: bold;
+        color: #374151;
+        border: 1px solid #e5e7eb;
+      }
+      .kernel-cell.positive {
+        background-color: #dcfce7;
+        color: #16a34a;
+      }
+      .kernel-cell.negative {
+        background-color: #fee2e2;
+        color: #dc2626;
+      }
+      .layer-comparison {
+        display: flex;
+        gap: 16px;
+        align-items: center;
+        margin: 16px 0;
+      }
+      .comparison-arrow {
+        font-size: 24px;
+        color: #3b82f6;
+        font-weight: bold;
+      }
+      .receptive-field-info {
+        background: linear-gradient(45deg, #3b82f6, #1d4ed8);
+        color: white;
+        padding: 8px;
+        border-radius: 6px;
+        font-size: 12px;
+        text-align: center;
+        margin-top: 8px;
+      }
+      .parameter-explanation {
+        background: #fef3c7;
+        border: 1px solid #f59e0b;
+        border-radius: 6px;
+        padding: 12px;
+        margin: 8px 0;
+        font-size: 14px;
+      }
+      .feature-highlight {
+        position: relative;
+        overflow: hidden;
+      }
+      .feature-highlight::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          rgba(59, 130, 246, 0.3),
+          transparent
+        );
+        animation: scan 3s infinite;
+      }
+      @keyframes scan {
+        0% {
+          left: -100%;
+        }
+        100% {
+          left: 100%;
+        }
+      }
+      .hover-info {
+        position: absolute;
+        background: rgba(0, 0, 0, 0.8);
+        color: white;
+        padding: 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        pointer-events: none;
+        z-index: 1000;
+        transform: translate(-50%, -100%);
+      }
+      .tab-button {
+        color: #6b7280;
+        background: transparent;
+      }
+      .tab-button.active {
+        background: #3b82f6;
+        color: white;
+      }
+      .tab-button:hover:not(.active) {
+        background: #e5e7eb;
+        color: #374151;
+      }
+      .statistics-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+      }
+      .stat-card {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 16px;
+      }
+      .comparison-slider {
+        position: relative;
+        overflow: hidden;
+        border-radius: 8px;
+      }
+      .comparison-container {
+        position: relative;
+        display: flex;
+      }
+      .comparison-image {
+        flex: 1;
+        position: relative;
+      }
+    </style>
+  </head>
+  <body class="bg-gray-50 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+      <!-- Header -->
+      <div class="text-center mb-8">
+        <h1 class="text-4xl font-bold text-gray-800 mb-2">
+          Visual Neural Network
+        </h1>
+        <p class="text-gray-600 mb-4">
+          Interactive demonstration of how Convolutional Neural Networks process
+          images
+        </p>
+
+        <!-- Quick Tutorial Toggle -->
+        <button
+          id="tutorialToggle"
+          class="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 transition duration-200"
+        >
+          📚 Show CNN Tutorial
+        </button>
+      </div>
+
+      <!-- Tutorial Section (Initially Hidden) -->
+      <div
+        id="tutorialSection"
+        class="bg-purple-50 border-l-4 border-purple-500 p-6 mb-8"
+        style="display: none"
+      >
+        <h3 class="text-lg font-semibold text-purple-800 mb-4">
+          🧠 How CNNs Work
+        </h3>
+
+        <div
+          class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm"
+        >
+          <div class="bg-white p-4 rounded-lg border border-purple-200">
+            <h4 class="font-semibold text-purple-700 mb-2">
+              🔍 Convolution Layers
+            </h4>
+            <p class="text-gray-700">
+              Apply filters (kernels) to detect features like edges, textures,
+              and patterns. Each filter slides across the image to create
+              feature maps.
+            </p>
+            <div class="mt-2 text-xs text-purple-600">
+              <strong>Key:</strong> Feature detection & pattern recognition
+            </div>
+          </div>
+
+          <div class="bg-white p-4 rounded-lg border border-purple-200">
+            <h4 class="font-semibold text-purple-700 mb-2">
+              📐 Kernels/Filters
+            </h4>
+            <p class="text-gray-700">
+              Small matrices (3×3) that detect specific features:
+            </p>
+            <ul class="mt-1 text-xs text-gray-600">
+              <li>• <strong>Sharpen:</strong> Enhances edges</li>
+              <li>• <strong>Blur:</strong> Smooths details</li>
+              <li>• <strong>Sobel:</strong> Detects edges</li>
+            </ul>
+          </div>
+
+          <div class="bg-white p-4 rounded-lg border border-purple-200">
+            <h4 class="font-semibold text-purple-700 mb-2">
+              🏊 Pooling Layers
+            </h4>
+            <p class="text-gray-700">
+              Reduce spatial dimensions while keeping important features. Max
+              pooling takes the maximum value in each region.
+            </p>
+            <div class="mt-2 text-xs text-purple-600">
+              <strong>Key:</strong> Dimensionality reduction & computational
+              efficiency
+            </div>
+          </div>
+
+          <div class="bg-white p-4 rounded-lg border border-purple-200">
+            <h4 class="font-semibold text-purple-700 mb-2">
+              👁️ Receptive Field
+            </h4>
+            <p class="text-gray-700">
+              The area of the input image that influences a single output pixel.
+              Grows larger with each layer.
+            </p>
+            <div class="mt-2 text-xs text-purple-600">
+              <strong>Formula:</strong> RF = RF_prev + (kernel_size - 1) × jump
+            </div>
+          </div>
+
+          <div class="bg-white p-4 rounded-lg border border-purple-200">
+            <h4 class="font-semibold text-purple-700 mb-2">
+              🦘 Jump Parameter
+            </h4>
+            <p class="text-gray-700">
+              Distance between centers of consecutive receptive fields.
+              Increases with stride.
+            </p>
+            <div class="mt-2 text-xs text-purple-600">
+              <strong>Formula:</strong> Jump = Jump_prev × stride
+            </div>
+          </div>
+
+          <div class="bg-white p-4 rounded-lg border border-purple-200">
+            <h4 class="font-semibold text-purple-700 mb-2">🎯 Try This!</h4>
+            <p class="text-gray-700">
+              1. Upload an image<br />2. Add Sobel X filter<br />3. Add Max
+              Pool<br />4. See edge detection!
+            </p>
+            <div class="mt-2 text-xs text-purple-600">
+              Hover over outputs for pixel details
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Input Image Section -->
+      <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+        <h2 class="text-2xl font-semibold text-gray-800 mb-4">Input Image</h2>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div>
+            <label
+              for="imageUpload"
+              class="block text-sm font-medium text-gray-700 mb-2"
+            >
+              Upload Image
+            </label>
+            <input
+              type="file"
+              id="imageUpload"
+              accept="image/*"
+              class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
+            />
+          </div>
+          <div class="flex justify-center">
+            <canvas
+              id="inputCanvas"
+              class="input-canvas"
+              style="display: none"
+            ></canvas>
+            <div
+              id="uploadPlaceholder"
+              class="w-full h-48 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center text-gray-500"
+            >
+              <div class="text-center">
+                <svg
+                  class="mx-auto h-12 w-12 text-gray-400"
+                  stroke="currentColor"
+                  fill="none"
+                  viewBox="0 0 48 48"
+                >
+                  <path
+                    d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+                <p class="mt-2">Upload an image to get started</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Add Layer Section -->
+      <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+        <h2 class="text-2xl font-semibold text-gray-800 mb-4">Add Layer</h2>
+        <form
+          id="layerForm"
+          class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4"
+        >
+          <!-- Layer Type -->
+          <div>
+            <label
+              for="layerType"
+              class="block text-sm font-medium text-gray-700 mb-1"
+              >Layer Type</label
+            >
+            <select
+              id="layerType"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="conv">Conv2D</option>
+              <option value="maxpool">Max-Pooling</option>
+              <option value="avgpool">Avg-Pooling</option>
+              <option value="relu">ReLU Activation</option>
+              <option value="batchnorm">Batch Norm</option>
+              <option value="dropout">Dropout</option>
+            </select>
+          </div>
+
+          <!-- Kernel Type (for Conv2D) -->
+          <div id="kernelTypeDiv">
+            <label
+              for="kernelType"
+              class="block text-sm font-medium text-gray-700 mb-1"
+              >Kernel Type</label
+            >
+            <select
+              id="kernelType"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="default">Sharpen (Default)</option>
+              <option value="blur">Blur</option>
+              <option value="gaussian">Gaussian Blur</option>
+              <option value="sobel_x">Sobel X</option>
+              <option value="sobel_y">Sobel Y</option>
+              <option value="laplacian">Laplacian</option>
+              <option value="emboss">Emboss</option>
+              <option value="edge_enhance">Edge Enhance</option>
+              <option value="identity">Identity</option>
+            </select>
+          </div>
+
+          <!-- Kernel Size (for Max-Pooling) -->
+          <div id="kernelSizeDiv" style="display: none">
+            <label
+              for="kernelSize"
+              class="block text-sm font-medium text-gray-700 mb-1"
+              >Kernel Size</label
+            >
+            <input
+              type="number"
+              id="kernelSize"
+              value="2"
+              min="1"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <!-- Stride -->
+          <div>
+            <label
+              for="stride"
+              class="block text-sm font-medium text-gray-700 mb-1"
+              >Stride</label
+            >
+            <input
+              type="number"
+              id="stride"
+              value="1"
+              min="1"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <!-- Padding -->
+          <div>
+            <label
+              for="padding"
+              class="block text-sm font-medium text-gray-700 mb-1"
+              >Padding</label
+            >
+            <input
+              type="number"
+              id="padding"
+              value="1"
+              min="0"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <!-- Out Channels -->
+          <div id="outChannelsDiv">
+            <label
+              for="outChannels"
+              class="block text-sm font-medium text-gray-700 mb-1"
+              >Out Channels</label
+            >
+            <input
+              type="number"
+              id="outChannels"
+              value="3"
+              min="1"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <!-- Dropout Rate (for Dropout) -->
+          <div id="dropoutRateDiv" style="display: none">
+            <label
+              for="dropoutRate"
+              class="block text-sm font-medium text-gray-700 mb-1"
+              >Dropout Rate</label
+            >
+            <input
+              type="number"
+              id="dropoutRate"
+              value="0.1"
+              min="0"
+              max="0.9"
+              step="0.1"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <!-- Add Layer Button -->
+          <div class="flex items-end">
+            <button
+              type="button"
+              id="addLayerBtn"
+              class="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200"
+            >
+              Add Layer
+            </button>
+          </div>
+        </form>
+
+        <!-- Layer Preview Section -->
+        <div
+          id="layerPreview"
+          class="mt-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg"
+        >
+          <h3 class="text-lg font-semibold text-blue-800 mb-3">
+            Layer Preview
+          </h3>
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <!-- Explanation Panel -->
+            <div id="layerExplanation" class="space-y-3">
+              <div class="bg-white p-4 rounded-lg border border-blue-100">
+                <h4 class="font-semibold text-blue-700 mb-2" id="layerTitle">
+                  Conv2D Layer
+                </h4>
+                <p class="text-gray-700 text-sm mb-3" id="layerDescription">
+                  Applies a 2D convolution operation using learnable filters
+                  (kernels) to detect features like edges, textures, and
+                  patterns in the input image.
+                </p>
+                <div class="bg-blue-50 p-3 rounded-md">
+                  <h5 class="font-medium text-blue-800 text-sm mb-1">
+                    What happens:
+                  </h5>
+                  <ul class="text-xs text-blue-700 space-y-1" id="layerEffects">
+                    <li>• Slides a 3×3 filter across the image</li>
+                    <li>• Detects specific features (edges, patterns)</li>
+                    <li>• Preserves spatial relationships</li>
+                    <li>
+                      • Can change image dimensions based on stride/padding
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            <!-- Visual Preview Panel -->
+            <div
+              id="visualPreview"
+              class="bg-white p-4 rounded-lg border border-blue-100"
+            >
+              <h4 class="font-semibold text-blue-700 mb-3">Visual Preview</h4>
+              <div class="flex flex-col items-center space-y-3">
+                <!-- Kernel Visualization -->
+                <div id="previewKernel" class="text-center">
+                  <div class="text-xs text-gray-600 mb-2">Sharpen Kernel</div>
+                  <div class="kernel-visualization mx-auto">
+                    <div class="kernel-cell">0</div>
+                    <div class="kernel-cell negative">-1</div>
+                    <div class="kernel-cell">0</div>
+                    <div class="kernel-cell negative">-1</div>
+                    <div class="kernel-cell positive">5</div>
+                    <div class="kernel-cell negative">-1</div>
+                    <div class="kernel-cell">0</div>
+                    <div class="kernel-cell negative">-1</div>
+                    <div class="kernel-cell">0</div>
+                  </div>
+                </div>
+
+                <!-- Effect Demonstration -->
+                <div id="effectDemo" class="text-center">
+                  <div class="text-xs text-gray-600 mb-2">Expected Effect</div>
+                  <div class="flex items-center space-x-2">
+                    <div
+                      class="w-12 h-12 bg-gradient-to-br from-gray-200 to-gray-400 rounded border flex items-center justify-center text-xs"
+                    >
+                      Input
+                    </div>
+                    <div class="text-blue-600">→</div>
+                    <div
+                      class="w-12 h-12 bg-gradient-to-br from-blue-200 to-blue-400 rounded border flex items-center justify-center text-xs text-white"
+                    >
+                      Sharp
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Parameter Impact -->
+                <div id="parameterImpact" class="text-center">
+                  <div class="text-xs text-gray-600 mb-1">
+                    Current Parameters
+                  </div>
+                  <div
+                    class="text-xs bg-gray-100 p-2 rounded space-y-1"
+                    id="currentParams"
+                  >
+                    <div>
+                      Kernel: <span class="font-mono">3×3 Sharpen</span>
+                    </div>
+                    <div>Stride: <span class="font-mono">1</span></div>
+                    <div>Padding: <span class="font-mono">1</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Architecture Table -->
+      <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-2xl font-semibold text-gray-800">Architecture</h2>
+          <div class="space-x-2">
+            <button
+              id="processBtn"
+              class="bg-green-600 text-white px-6 py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled
+            >
+              Process Layers
+            </button>
+            <button
+              id="clearBtn"
+              class="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 transition duration-200"
+            >
+              Clear All
+            </button>
+          </div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="min-w-full table-auto">
+            <thead class="bg-gray-100">
+              <tr>
+                <th
+                  class="px-4 py-2 text-left text-sm font-medium text-gray-700"
+                >
+                  Layer
+                </th>
+                <th
+                  class="px-4 py-2 text-left text-sm font-medium text-gray-700"
+                >
+                  Type
+                </th>
+                <th
+                  class="px-4 py-2 text-left text-sm font-medium text-gray-700"
+                >
+                  Kernel
+                </th>
+                <th
+                  class="px-4 py-2 text-left text-sm font-medium text-gray-700"
+                >
+                  Stride
+                </th>
+                <th
+                  class="px-4 py-2 text-left text-sm font-medium text-gray-700"
+                >
+                  Padding
+                </th>
+                <th
+                  class="px-4 py-2 text-left text-sm font-medium text-gray-700"
+                >
+                  Out Channels
+                </th>
+                <th
+                  class="px-4 py-2 text-left text-sm font-medium text-gray-700"
+                >
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody id="architectureTable" class="divide-y divide-gray-200">
+              <tr id="noLayersRow">
+                <td colspan="7" class="px-4 py-8 text-center text-gray-500">
+                  No layers added yet
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Layer Outputs Section -->
+      <div class="bg-white rounded-lg shadow-md p-6">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-2xl font-semibold text-gray-800">Layer Outputs</h2>
+
+          <!-- Visualization Tabs -->
+          <div class="flex space-x-1 bg-gray-100 p-1 rounded-lg">
+            <button
+              id="tabBasic"
+              class="tab-button active px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200"
+            >
+              🖼️ Basic View
+            </button>
+            <button
+              id="tabFeatureMaps"
+              class="tab-button px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200"
+            >
+              🗺️ Feature Maps
+            </button>
+            <button
+              id="tabStatistics"
+              class="tab-button px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200"
+            >
+              📊 Statistics
+            </button>
+            <button
+              id="tabComparison"
+              class="tab-button px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200"
+            >
+              🔍 Comparison
+            </button>
+          </div>
+        </div>
+
+        <!-- Tab Content -->
+        <div id="tabContent">
+          <!-- Basic View Tab -->
+          <div id="basicView" class="tab-content">
+            <div
+              id="layerOutputs"
+              class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+            >
+              <div class="text-center text-gray-500 py-8 col-span-full">
+                <p>Process layers to see outputs here</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Feature Maps Tab -->
+          <div id="featureMapsView" class="tab-content" style="display: none">
+            <div id="featureMapsContent" class="space-y-6">
+              <div class="text-center text-gray-500 py-8">
+                <p>Process layers to see individual feature maps here</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Statistics Tab -->
+          <div id="statisticsView" class="tab-content" style="display: none">
+            <div id="statisticsContent" class="space-y-6">
+              <div class="text-center text-gray-500 py-8">
+                <p>Process layers to see activation statistics here</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Comparison Tab -->
+          <div id="comparisonView" class="tab-content" style="display: none">
+            <div id="comparisonContent" class="space-y-6">
+              <div class="text-center text-gray-500 py-8">
+                <p>Process layers to see layer comparisons here</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Loading Overlay -->
+      <div
+        id="loadingOverlay"
+        class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+        style="display: none"
+      >
+        <div class="bg-white rounded-lg p-6 text-center">
+          <div
+            class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"
+          ></div>
+          <p class="text-gray-700">Processing layers...</p>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // Global variables
+      let layers = [];
+      let currentImageBase64 = null;
+
+      // DOM elements
+      const imageUpload = document.getElementById("imageUpload");
+      const inputCanvas = document.getElementById("inputCanvas");
+      const uploadPlaceholder = document.getElementById("uploadPlaceholder");
+      const layerForm = document.getElementById("layerForm");
+      const layerType = document.getElementById("layerType");
+      const kernelTypeDiv = document.getElementById("kernelTypeDiv");
+      const kernelSizeDiv = document.getElementById("kernelSizeDiv");
+      const addLayerBtn = document.getElementById("addLayerBtn");
+      const processBtn = document.getElementById("processBtn");
+      const clearBtn = document.getElementById("clearBtn");
+      const architectureTable = document.getElementById("architectureTable");
+      const noLayersRow = document.getElementById("noLayersRow");
+      const layerOutputs = document.getElementById("layerOutputs");
+      const loadingOverlay = document.getElementById("loadingOverlay");
+
+      // Event listeners
+      imageUpload.addEventListener("change", handleImageUpload);
+      layerType.addEventListener("change", toggleLayerInputs);
+      addLayerBtn.addEventListener("click", addLayer);
+      processBtn.addEventListener("click", processLayers);
+      clearBtn.addEventListener("click", clearAll);
+      document
+        .getElementById("tutorialToggle")
+        .addEventListener("click", toggleTutorial);
+
+      // Tab event listeners
+      document
+        .getElementById("tabBasic")
+        .addEventListener("click", () => switchTab("basic"));
+      document
+        .getElementById("tabFeatureMaps")
+        .addEventListener("click", () => switchTab("featureMaps"));
+      document
+        .getElementById("tabStatistics")
+        .addEventListener("click", () => switchTab("statistics"));
+      document
+        .getElementById("tabComparison")
+        .addEventListener("click", () => switchTab("comparison"));
+
+      // Layer preview event listeners
+      document
+        .getElementById("kernelType")
+        .addEventListener("change", updateLayerPreview);
+      document
+        .getElementById("kernelSize")
+        .addEventListener("input", updateLayerPreview);
+      document
+        .getElementById("stride")
+        .addEventListener("input", updateLayerPreview);
+      document
+        .getElementById("padding")
+        .addEventListener("input", updateLayerPreview);
+      document
+        .getElementById("dropoutRate")
+        .addEventListener("input", updateLayerPreview);
+
+      // Handle image upload
+      function handleImageUpload(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          const img = new Image();
+          img.onload = function () {
+            const ctx = inputCanvas.getContext("2d");
+
+            // Calculate canvas size to maintain aspect ratio
+            const maxWidth = 400;
+            const maxHeight = 400;
+            let { width, height } = img;
+
+            if (width > height) {
+              if (width > maxWidth) {
+                height = (height * maxWidth) / width;
+                width = maxWidth;
+              }
+            } else {
+              if (height > maxHeight) {
+                width = (width * maxHeight) / height;
+                height = maxHeight;
+              }
+            }
+
+            inputCanvas.width = width;
+            inputCanvas.height = height;
+            ctx.drawImage(img, 0, 0, width, height);
+
+            // Convert to base64
+            currentImageBase64 = inputCanvas
+              .toDataURL("image/png")
+              .split(",")[1];
+
+            // Show canvas and hide placeholder
+            inputCanvas.style.display = "block";
+            uploadPlaceholder.style.display = "none";
+
+            updateProcessButton();
+          };
+          img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      }
+
+      // Toggle layer inputs based on layer type
+      function toggleLayerInputs() {
+        const layerTypeValue = layerType.value;
+        const isConv = layerTypeValue === "conv";
+        const isPooling =
+          layerTypeValue === "maxpool" || layerTypeValue === "avgpool";
+        const isDropout = layerTypeValue === "dropout";
+        const needsKernelSize = isPooling;
+        const needsStridePadding = isConv || isPooling;
+
+        // Show/hide relevant inputs
+        kernelTypeDiv.style.display = isConv ? "block" : "none";
+        kernelSizeDiv.style.display = needsKernelSize ? "block" : "none";
+        document.getElementById("dropoutRateDiv").style.display = isDropout
+          ? "block"
+          : "none";
+        document.getElementById("outChannelsDiv").style.display =
+          needsStridePadding ? "block" : "none";
+        document.getElementById("stride").parentElement.style.display =
+          needsStridePadding ? "block" : "none";
+        document.getElementById("padding").parentElement.style.display =
+          needsStridePadding ? "block" : "none";
+
+        // Update default values
+        const paddingInput = document.getElementById("padding");
+        const strideInput = document.getElementById("stride");
+
+        if (isPooling) {
+          paddingInput.value = "0";
+          strideInput.value = "2";
+        } else if (isConv) {
+          paddingInput.value = "1";
+          strideInput.value = "1";
+        }
+
+        // Update layer preview
+        updateLayerPreview();
+      }
+
+      // Add layer to architecture and process immediately
+      async function addLayer() {
+        // Collect all selected parameters from the form
+        const type = layerType.value;
+        const stride = parseInt(document.getElementById("stride").value);
+        const padding = parseInt(document.getElementById("padding").value);
+        const outChannels = parseInt(
+          document.getElementById("outChannels").value
+        );
+
+        const layer = {
+          type: type,
+        };
+
+        // Add type-specific parameters
+        if (type === "conv") {
+          layer.kernel_type = document.getElementById("kernelType").value;
+          layer.kernel_display =
+            document.getElementById("kernelType").selectedOptions[0].text;
+          layer.stride = stride;
+          layer.padding = padding;
+          layer.out_channels = outChannels;
+        } else if (type === "maxpool" || type === "avgpool") {
+          layer.kernel_size = parseInt(
+            document.getElementById("kernelSize").value
+          );
+          layer.kernel_display =
+            document.getElementById("kernelSize").value +
+            "x" +
+            document.getElementById("kernelSize").value;
+          layer.stride = stride;
+          layer.padding = padding;
+          layer.out_channels = outChannels;
+        } else if (type === "dropout") {
+          layer.dropout_rate = parseFloat(
+            document.getElementById("dropoutRate").value
+          );
+          layer.kernel_display = `Rate: ${layer.dropout_rate}`;
+        } else if (type === "relu") {
+          layer.kernel_display = "ReLU";
+        } else if (type === "batchnorm") {
+          layer.kernel_display = "BatchNorm";
+        }
+
+        // Push new layer object into global layers array
+        layers.push(layer);
+        updateArchitectureTable();
+        updateProcessButton();
+
+        // If we have an image, automatically process the layers
+        if (currentImageBase64) {
+          await processLayersRequest();
+        }
+
+        // Reset form
+        document.getElementById("stride").value = "1";
+        document.getElementById("padding").value = type === "conv" ? "1" : "0";
+        document.getElementById("outChannels").value = "3";
+      }
+
+      // Update architecture table
+      function updateArchitectureTable() {
+        if (layers.length === 0) {
+          noLayersRow.style.display = "table-row";
+          return;
+        }
+
+        noLayersRow.style.display = "none";
+
+        const tbody = architectureTable;
+        // Clear existing rows except noLayersRow
+        const existingRows = tbody.querySelectorAll("tr:not(#noLayersRow)");
+        existingRows.forEach((row) => row.remove());
+
+        layers.forEach((layer, index) => {
+          const row = document.createElement("tr");
+          row.className = "hover:bg-gray-50";
+          row.innerHTML = `
+                    <td class="px-4 py-2 text-sm text-gray-900">${
+                      index + 1
+                    }</td>
+                    <td class="px-4 py-2 text-sm text-gray-900">${
+                      layer.type === "conv" ? "Conv2D" : "Max-Pool"
+                    }</td>
+                    <td class="px-4 py-2 text-sm text-gray-900">${
+                      layer.kernel_display
+                    }</td>
+                    <td class="px-4 py-2 text-sm text-gray-900">${
+                      layer.stride
+                    }</td>
+                    <td class="px-4 py-2 text-sm text-gray-900">${
+                      layer.padding
+                    }</td>
+                    <td class="px-4 py-2 text-sm text-gray-900">${
+                      layer.out_channels
+                    }</td>
+                    <td class="px-4 py-2 text-sm">
+                        <button onclick="removeLayer(${index})" class="text-red-600 hover:text-red-800 text-sm">Remove</button>
+                    </td>
+                `;
+          tbody.appendChild(row);
+        });
+      }
+
+      // Remove layer
+      function removeLayer(index) {
+        layers.splice(index, 1);
+        updateArchitectureTable();
+        updateProcessButton();
+        clearLayerOutputs();
+      }
+
+      // Update process button state
+      function updateProcessButton() {
+        processBtn.disabled = !currentImageBase64 || layers.length === 0;
+      }
+
+      // Process layers - Make fetch POST request to backend
+      async function processLayersRequest() {
+        if (!currentImageBase64 || layers.length === 0) return;
+
+        loadingOverlay.style.display = "flex";
+
+        try {
+          // Make fetch POST request to backend's /process-layers endpoint
+          const response = await fetch("http://localhost:5001/process-layers", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              image_base64: currentImageBase64,
+              layers: layers,
+            }),
+          });
+
+          const data = await response.json();
+
+          if (data.success) {
+            // Clear existing architecture table and output canvases
+            clearArchitectureResults();
+            clearLayerOutputs();
+
+            // Process the results array from API
+            processAPIResults(data.results);
+          } else {
+            alert("Error: " + data.error);
+          }
+        } catch (error) {
+          alert("Network error: " + error.message);
+        } finally {
+          loadingOverlay.style.display = "none";
+        }
+      }
+
+      // Wrapper function for manual processing
+      async function processLayers() {
+        await processLayersRequest();
+      }
+
+      // Clear architecture table results (keeping structure)
+      function clearArchitectureResults() {
+        // Add result columns to existing architecture table if they don't exist
+        const tbody = architectureTable;
+        const existingResultRows = tbody.querySelectorAll("tr.result-row");
+        existingResultRows.forEach((row) => row.remove());
+      }
+
+      // Process API results - Loop through results array
+      function processAPIResults(results) {
+        // Update architecture table with numerical data
+        updateArchitectureWithResults(results);
+
+        // Create canvases for layer outputs (Basic View)
+        displayLayerOutputs(results);
+
+        // Populate all visualization tabs
+        displayFeatureMaps(results);
+        displayStatistics(results);
+        displayComparison(results);
+      }
+
+      // Update architecture table with results
+      function updateArchitectureWithResults(results) {
+        const tbody = architectureTable;
+
+        // Add results data to existing layer rows
+        results.forEach((result, index) => {
+          // Find the corresponding layer row
+          const layerRow = tbody.querySelector(`tr:nth-child(${index + 2})`); // +2 because of header
+
+          if (layerRow) {
+            // Add result information as data attributes or update display
+            const resultInfo = document.createElement("tr");
+            resultInfo.className = "result-row bg-blue-50";
+            resultInfo.innerHTML = `
+              <td class="px-4 py-1 text-xs text-blue-600">→ Result</td>
+              <td class="px-4 py-1 text-xs text-blue-600">Shape: [${result.output_shape.join(
+                ", "
+              )}]</td>
+              <td class="px-4 py-1 text-xs text-blue-600">RF: ${
+                result.receptive_field
+              }</td>
+              <td class="px-4 py-1 text-xs text-blue-600">Jump: ${
+                result.jump
+              }</td>
+              <td class="px-4 py-1 text-xs text-blue-600" colspan="3">Layer ${
+                result.layer_index + 1
+              } Output</td>
+            `;
+
+            // Insert result row after the layer row
+            layerRow.insertAdjacentElement("afterend", resultInfo);
+          }
+        });
+      }
+
+      // Display layer outputs - Create enhanced visualizations
+      function displayLayerOutputs(results) {
+        layerOutputs.innerHTML = "";
+
+        results.forEach((result, index) => {
+          const container = document.createElement("div");
+          container.className = "canvas-container feature-highlight";
+
+          // Add layer comparison if not first layer
+          if (index > 0) {
+            const comparison = document.createElement("div");
+            comparison.className = "layer-comparison";
+            comparison.innerHTML = `
+              <div class="text-sm text-gray-600">
+                <strong>Layer ${index}</strong> → <strong>Layer ${
+              index + 1
+            }</strong>
+              </div>
+              <div class="comparison-arrow">→</div>
+              <div class="text-xs text-gray-500">
+                ${
+                  result.layer_type === "conv"
+                    ? "Feature Detection"
+                    : "Downsampling"
+                }
+              </div>
+            `;
+            layerOutputs.appendChild(comparison);
+          }
+
+          // Kernel visualization for conv layers
+          if (result.layer_type === "conv") {
+            const kernelInfo = getKernelVisualization(
+              layers[index].kernel_type
+            );
+            const kernelContainer = document.createElement("div");
+            kernelContainer.className = "mb-3";
+            kernelContainer.innerHTML = `
+              <div class="text-xs text-gray-600 text-center mb-2">
+                <strong>${layers[
+                  index
+                ].kernel_type.toUpperCase()} Kernel</strong>
+              </div>
+              ${kernelInfo.html}
+              <div class="text-xs text-gray-500 text-center mt-1">
+                ${kernelInfo.description}
+              </div>
+            `;
+            container.appendChild(kernelContainer);
+          }
+
+          // Create canvas with hover effects
+          const canvasWrapper = document.createElement("div");
+          canvasWrapper.className = "relative";
+
+          const canvas = document.createElement("canvas");
+          canvas.className = "layer-canvas";
+          canvas.id = `layerCanvas${index}`;
+
+          // Add hover info functionality
+          canvas.addEventListener("mousemove", (e) =>
+            showHoverInfo(e, result, index)
+          );
+          canvas.addEventListener("mouseleave", hideHoverInfo);
+
+          const img = new Image();
+          img.onload = function () {
+            const ctx = canvas.getContext("2d");
+
+            // Calculate display size
+            const maxSize = 250;
+            let { width, height } = img;
+
+            if (width > height) {
+              if (width > maxSize) {
+                height = (height * maxSize) / width;
+                width = maxSize;
+              }
+            } else {
+              if (height > maxSize) {
+                width = (width * maxSize) / height;
+                height = maxSize;
+              }
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            ctx.drawImage(img, 0, 0, width, height);
+          };
+          img.src = "data:image/png;base64," + result.base64_image;
+
+          canvasWrapper.appendChild(canvas);
+          container.appendChild(canvasWrapper);
+
+          // Enhanced information panel
+          const info = document.createElement("div");
+          info.className = "mt-3 text-sm text-gray-600";
+          info.innerHTML = `
+            <div class="font-semibold text-gray-800 mb-2 text-center">
+              Layer ${index + 1}: ${
+            result.layer_type === "conv" ? "Convolution" : "Max Pooling"
+          }
+            </div>
+            
+            <div class="grid grid-cols-2 gap-2 text-xs">
+              <div class="bg-blue-50 p-2 rounded">
+                <div class="font-medium text-blue-800">Output Shape</div>
+                <div class="text-blue-600">[${result.output_shape.join(
+                  ", "
+                )}]</div>
+              </div>
+              <div class="bg-green-50 p-2 rounded">
+                <div class="font-medium text-green-800">Parameters</div>
+                <div class="text-green-600">
+                  ${
+                    result.layer_type === "conv"
+                      ? `Kernel: ${layers[index].kernel_type}<br>Stride: ${layers[index].stride}`
+                      : `Pool: ${layers[index].kernel_size}x${layers[index].kernel_size}<br>Stride: ${layers[index].stride}`
+                  }
+                </div>
+              </div>
+            </div>
+            
+            <div class="receptive-field-info">
+              <div><strong>Receptive Field:</strong> ${
+                result.receptive_field
+              }px</div>
+              <div><strong>Jump:</strong> ${result.jump}px</div>
+              <div class="text-xs mt-1 opacity-80">
+                Each output pixel sees ${result.receptive_field}×${
+            result.receptive_field
+          } input region
+              </div>
+            </div>
+            
+            <div class="parameter-explanation">
+              <strong>${
+                result.layer_type === "conv"
+                  ? "Convolution Effect:"
+                  : "Pooling Effect:"
+              }</strong>
+              ${getLayerExplanation(result.layer_type, layers[index])}
+            </div>
+          `;
+
+          container.appendChild(info);
+          layerOutputs.appendChild(container);
+        });
+      }
+
+      // Get kernel visualization
+      function getKernelVisualization(kernelType) {
+        const kernels = {
+          default: {
+            values: [0, -1, 0, -1, 5, -1, 0, -1, 0],
+            description: "Sharpens edges and enhances details",
+          },
+          sharpen: {
+            values: [0, -1, 0, -1, 5, -1, 0, -1, 0],
+            description: "Sharpens edges and enhances details",
+          },
+          blur: {
+            values: [
+              1 / 9,
+              1 / 9,
+              1 / 9,
+              1 / 9,
+              1 / 9,
+              1 / 9,
+              1 / 9,
+              1 / 9,
+              1 / 9,
+            ],
+            description: "Smooths image by averaging neighbors",
+          },
+          sobel_x: {
+            values: [-1, 0, 1, -2, 0, 2, -1, 0, 1],
+            description: "Detects vertical edges (horizontal gradients)",
+          },
+          sobel_y: {
+            values: [-1, -2, -1, 0, 0, 0, 1, 2, 1],
+            description: "Detects horizontal edges (vertical gradients)",
+          },
+          gaussian: {
+            values: [
+              1 / 16,
+              2 / 16,
+              1 / 16,
+              2 / 16,
+              4 / 16,
+              2 / 16,
+              1 / 16,
+              2 / 16,
+              1 / 16,
+            ],
+            description: "Gaussian blur with weighted averaging",
+          },
+          laplacian: {
+            values: [0, -1, 0, -1, 4, -1, 0, -1, 0],
+            description: "Laplacian edge detection",
+          },
+          emboss: {
+            values: [-2, -1, 0, -1, 1, 1, 0, 1, 2],
+            description: "Creates embossed 3D-like effect",
+          },
+          edge_enhance: {
+            values: [0, 0, 0, -1, 1, 0, 0, 0, 0],
+            description: "Enhances edges with directional emphasis",
+          },
+          identity: {
+            values: [0, 0, 0, 0, 1, 0, 0, 0, 0],
+            description: "Identity kernel (no change)",
+          },
+        };
+
+        const kernel = kernels[kernelType] || kernels["default"];
+        const html = `
+          <div class="kernel-visualization">
+            ${kernel.values
+              .map((val) => {
+                const rounded = Math.round(val * 100) / 100;
+                const cellClass =
+                  val > 0 ? "positive" : val < 0 ? "negative" : "";
+                return `<div class="kernel-cell ${cellClass}">${rounded}</div>`;
+              })
+              .join("")}
+          </div>
+        `;
+
+        return { html, description: kernel.description };
+      }
+
+      // Get layer explanation
+      function getLayerExplanation(layerType, layerConfig) {
+        if (layerType === "conv") {
+          const explanations = {
+            sharpen:
+              "Enhances edges and fine details by amplifying differences between adjacent pixels.",
+            blur: "Reduces noise and creates smooth transitions by averaging neighboring pixel values.",
+            sobel_x:
+              "Highlights vertical edges by computing horizontal gradients across the image.",
+            sobel_y:
+              "Highlights horizontal edges by computing vertical gradients across the image.",
+            default:
+              "Enhances edges and fine details by amplifying differences between adjacent pixels.",
+          };
+          return (
+            explanations[layerConfig.kernel_type] || explanations["default"]
+          );
+        } else {
+          return `Reduces spatial dimensions by taking maximum values in ${layerConfig.kernel_size}×${layerConfig.kernel_size} windows, preserving important features while reducing computation.`;
+        }
+      }
+
+      // Show hover information
+      function showHoverInfo(event, result, layerIndex) {
+        const canvas = event.target;
+        const rect = canvas.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+
+        // Calculate pixel coordinates in the actual image
+        const scaleX = result.output_shape[3] / canvas.width;
+        const scaleY = result.output_shape[2] / canvas.height;
+        const pixelX = Math.floor(x * scaleX);
+        const pixelY = Math.floor(y * scaleY);
+
+        // Remove existing hover info
+        hideHoverInfo();
+
+        // Create hover info element
+        const hoverInfo = document.createElement("div");
+        hoverInfo.className = "hover-info";
+        hoverInfo.id = "hoverInfo";
+        hoverInfo.style.left = event.clientX + "px";
+        hoverInfo.style.top = event.clientY + "px";
+        hoverInfo.innerHTML = `
+          <div><strong>Pixel:</strong> (${pixelX}, ${pixelY})</div>
+          <div><strong>Layer:</strong> ${layerIndex + 1}</div>
+          <div><strong>Receptive Field:</strong> ${
+            result.receptive_field
+          }px</div>
+          <div><strong>Output Shape:</strong> ${result.output_shape[2]}×${
+          result.output_shape[3]
+        }</div>
+        `;
+
+        document.body.appendChild(hoverInfo);
+      }
+
+      // Hide hover information
+      function hideHoverInfo() {
+        const existing = document.getElementById("hoverInfo");
+        if (existing) {
+          existing.remove();
+        }
+      }
+
+      // Clear layer outputs
+      function clearLayerOutputs() {
+        layerOutputs.innerHTML =
+          '<div class="text-center text-gray-500 py-8 col-span-full"><p>Process layers to see outputs here</p></div>';
+      }
+
+      // Clear all
+      function clearAll() {
+        layers = [];
+        currentImageBase64 = null;
+
+        // Reset image upload
+        imageUpload.value = "";
+        inputCanvas.style.display = "none";
+        uploadPlaceholder.style.display = "flex";
+
+        // Reset form
+        layerType.value = "conv";
+        toggleLayerInputs();
+        document.getElementById("kernelType").value = "default";
+        document.getElementById("kernelSize").value = "2";
+        document.getElementById("stride").value = "1";
+        document.getElementById("padding").value = "1";
+        document.getElementById("outChannels").value = "3";
+
+        // Clear table and outputs
+        updateArchitectureTable();
+        clearLayerOutputs();
+        updateProcessButton();
+      }
+
+      // Toggle tutorial section
+      function toggleTutorial() {
+        const tutorialSection = document.getElementById("tutorialSection");
+        const tutorialToggle = document.getElementById("tutorialToggle");
+
+        if (tutorialSection.style.display === "none") {
+          tutorialSection.style.display = "block";
+          tutorialToggle.textContent = "📚 Hide CNN Tutorial";
+        } else {
+          tutorialSection.style.display = "none";
+          tutorialToggle.textContent = "📚 Show CNN Tutorial";
+        }
+      }
+
+      // Tab switching functionality
+      function switchTab(tabName) {
+        // Remove active class from all tab buttons
+        document
+          .querySelectorAll(".tab-button")
+          .forEach((btn) => btn.classList.remove("active"));
+
+        // Hide all tab content
+        document
+          .querySelectorAll(".tab-content")
+          .forEach((content) => (content.style.display = "none"));
+
+        // Show selected tab
+        document
+          .getElementById(
+            `tab${tabName.charAt(0).toUpperCase() + tabName.slice(1)}`
+          )
+          .classList.add("active");
+        document.getElementById(`${tabName}View`).style.display = "block";
+      }
+
+      // Enhanced visualization functions
+      function displayFeatureMaps(results) {
+        const featureMapsContent =
+          document.getElementById("featureMapsContent");
+        featureMapsContent.innerHTML = "";
+
+        results.forEach((result, index) => {
+          const layerContainer = document.createElement("div");
+          layerContainer.className = "bg-gray-50 p-4 rounded-lg";
+          layerContainer.innerHTML = `
+             <h3 class="font-semibold text-lg mb-3">Layer ${index + 1}: ${
+            result.layer_type
+          }</h3>
+             <div class="text-sm text-gray-600 mb-3">
+               Shape: [${result.output_shape.join(", ")}] | Channels: ${
+            result.output_shape[1]
+          }
+             </div>
+             <div class="grid grid-cols-3 gap-2">
+               <canvas id="featureMap${index}_red" class="border rounded"></canvas>
+               <canvas id="featureMap${index}_green" class="border rounded"></canvas>
+               <canvas id="featureMap${index}_blue" class="border rounded"></canvas>
+             </div>
+             <div class="grid grid-cols-3 gap-2 text-xs text-center mt-1">
+               <div>Red Channel</div>
+               <div>Green Channel</div>
+               <div>Blue Channel</div>
+             </div>
+           `;
+          featureMapsContent.appendChild(layerContainer);
+
+          // Create individual channel visualizations
+          setTimeout(() => {
+            createChannelVisualization(result.base64_image, index);
+          }, 100);
+        });
+      }
+
+      function displayStatistics(results) {
+        const statisticsContent = document.getElementById("statisticsContent");
+        statisticsContent.innerHTML = "";
+
+        results.forEach((result, index) => {
+          const statsContainer = document.createElement("div");
+          statsContainer.className = "statistics-grid";
+
+          // Create mock statistics (in real implementation, these would come from backend)
+          const stats = {
+            mean: 0.3 + Math.random() * 0.4,
+            std: 0.1 + Math.random() * 0.2,
+            min: Math.random() * 0.2,
+            max: 0.8 + Math.random() * 0.2,
+            sparsity: Math.random() * 0.5,
+          };
+
+          statsContainer.innerHTML = `
+             <div class="stat-card">
+               <h3 class="font-semibold mb-2">Layer ${index + 1} Statistics</h3>
+               <div class="space-y-2">
+                 <div class="flex justify-between">
+                   <span>Mean:</span>
+                   <span class="font-mono">${stats.mean.toFixed(3)}</span>
+                 </div>
+                 <div class="flex justify-between">
+                   <span>Std Dev:</span>
+                   <span class="font-mono">${stats.std.toFixed(3)}</span>
+                 </div>
+                 <div class="flex justify-between">
+                   <span>Min:</span>
+                   <span class="font-mono">${stats.min.toFixed(3)}</span>
+                 </div>
+                 <div class="flex justify-between">
+                   <span>Max:</span>
+                   <span class="font-mono">${stats.max.toFixed(3)}</span>
+                 </div>
+                 <div class="flex justify-between">
+                   <span>Sparsity:</span>
+                   <span class="font-mono">${(stats.sparsity * 100).toFixed(
+                     1
+                   )}%</span>
+                 </div>
+               </div>
+             </div>
+           `;
+          statisticsContent.appendChild(statsContainer);
+        });
+      }
+
+      function displayComparison(results) {
+        const comparisonContent = document.getElementById("comparisonContent");
+        comparisonContent.innerHTML = "";
+
+        if (results.length < 2) {
+          comparisonContent.innerHTML =
+            '<div class="text-center text-gray-500 py-8">Need at least 2 layers for comparison</div>';
+          return;
+        }
+
+        for (let i = 0; i < results.length - 1; i++) {
+          const comparisonContainer = document.createElement("div");
+          comparisonContainer.className = "comparison-container mb-6";
+          comparisonContainer.innerHTML = `
+             <h3 class="font-semibold mb-3">Layer ${i + 1} → Layer ${i + 2}</h3>
+             <div class="grid grid-cols-2 gap-4">
+               <div class="comparison-image">
+                 <canvas id="compare${i}_before" class="w-full border rounded"></canvas>
+                 <div class="text-center text-sm mt-1">Before (Layer ${
+                   i + 1
+                 })</div>
+               </div>
+               <div class="comparison-image">
+                 <canvas id="compare${i}_after" class="w-full border rounded"></canvas>
+                 <div class="text-center text-sm mt-1">After (Layer ${
+                   i + 2
+                 })</div>
+               </div>
+             </div>
+           `;
+          comparisonContent.appendChild(comparisonContainer);
+
+          // Draw comparison images
+          setTimeout(() => {
+            drawComparisonImages(results[i], results[i + 1], i);
+          }, 100);
+        }
+      }
+
+      function createChannelVisualization(base64Image, layerIndex) {
+        const img = new Image();
+        img.onload = function () {
+          ["red", "green", "blue"].forEach((channel, channelIndex) => {
+            const canvas = document.getElementById(
+              `featureMap${layerIndex}_${channel}`
+            );
+            if (canvas) {
+              canvas.width = 150;
+              canvas.height = 150;
+              const ctx = canvas.getContext("2d");
+
+              // Draw the image and extract channel
+              ctx.drawImage(img, 0, 0, 150, 150);
+              const imageData = ctx.getImageData(0, 0, 150, 150);
+              const data = imageData.data;
+
+              // Enhance specific channel
+              for (let i = 0; i < data.length; i += 4) {
+                if (channelIndex === 0) {
+                  // Red
+                  data[i + 1] = data[i + 1] * 0.3; // Reduce green
+                  data[i + 2] = data[i + 2] * 0.3; // Reduce blue
+                } else if (channelIndex === 1) {
+                  // Green
+                  data[i] = data[i] * 0.3; // Reduce red
+                  data[i + 2] = data[i + 2] * 0.3; // Reduce blue
+                } else {
+                  // Blue
+                  data[i] = data[i] * 0.3; // Reduce red
+                  data[i + 1] = data[i + 1] * 0.3; // Reduce green
+                }
+              }
+
+              ctx.putImageData(imageData, 0, 0);
+            }
+          });
+        };
+        img.src = "data:image/png;base64," + base64Image;
+      }
+
+      function drawComparisonImages(result1, result2, index) {
+        const beforeCanvas = document.getElementById(`compare${index}_before`);
+        const afterCanvas = document.getElementById(`compare${index}_after`);
+
+        if (beforeCanvas && afterCanvas) {
+          drawImageToCanvas(result1.base64_image, beforeCanvas);
+          drawImageToCanvas(result2.base64_image, afterCanvas);
+        }
+      }
+
+      function drawImageToCanvas(base64Image, canvas) {
+        const img = new Image();
+        img.onload = function () {
+          canvas.width = 250;
+          canvas.height = 250;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, 250, 250);
+        };
+        img.src = "data:image/png;base64," + base64Image;
+      }
+
+      // Update layer preview based on current selections
+      function updateLayerPreview() {
+        const layerTypeValue = layerType.value;
+        const layerTitle = document.getElementById("layerTitle");
+        const layerDescription = document.getElementById("layerDescription");
+        const layerEffects = document.getElementById("layerEffects");
+        const previewKernel = document.getElementById("previewKernel");
+        const effectDemo = document.getElementById("effectDemo");
+        const currentParams = document.getElementById("currentParams");
+
+        // Define layer information
+        const layerInfo = {
+          conv: {
+            title: "Conv2D Layer",
+            description:
+              "Applies a 2D convolution operation using learnable filters (kernels) to detect features like edges, textures, and patterns in the input image.",
+            effects: [
+              "• Slides a filter across the image",
+              "• Detects specific features based on kernel type",
+              "• Preserves spatial relationships",
+              "• Can change image dimensions based on stride/padding",
+            ],
+          },
+          maxpool: {
+            title: "Max-Pooling Layer",
+            description:
+              "Downsamples the input by taking the maximum value in each pooling window. Reduces spatial dimensions while preserving the most important features.",
+            effects: [
+              "• Reduces image size by factor of stride",
+              "• Keeps strongest activations (max values)",
+              "• Provides translation invariance",
+              "• Reduces computational load for next layers",
+            ],
+          },
+          avgpool: {
+            title: "Average-Pooling Layer",
+            description:
+              "Downsamples the input by taking the average value in each pooling window. Provides smoother downsampling compared to max pooling.",
+            effects: [
+              "• Reduces image size by averaging regions",
+              "• Smooths out fine details",
+              "• Less aggressive than max pooling",
+              "• Good for preserving overall texture information",
+            ],
+          },
+          relu: {
+            title: "ReLU Activation Layer",
+            description:
+              "Applies Rectified Linear Unit activation function: f(x) = max(0, x). Introduces non-linearity by setting all negative values to zero.",
+            effects: [
+              "• Clips all negative values to zero",
+              "• Preserves positive values unchanged",
+              "• Introduces non-linearity to the network",
+              "• Helps with gradient flow during training",
+            ],
+          },
+          batchnorm: {
+            title: "Batch Normalization Layer",
+            description:
+              "Normalizes the input across the batch dimension. Helps stabilize training and allows higher learning rates.",
+            effects: [
+              "• Normalizes activations to have mean=0, std=1",
+              "• Reduces internal covariate shift",
+              "• Acts as regularization technique",
+              "• Accelerates training convergence",
+            ],
+          },
+          dropout: {
+            title: "Dropout Layer",
+            description:
+              "Randomly sets a fraction of input units to zero during training. Prevents overfitting by reducing co-adaptation of neurons.",
+            effects: [
+              "• Randomly masks features with probability p",
+              "• Forces network to learn robust representations",
+              "• Reduces overfitting significantly",
+              "• Only active during training phase",
+            ],
+          },
+        };
+
+        const info = layerInfo[layerTypeValue];
+        if (info) {
+          layerTitle.textContent = info.title;
+          layerDescription.textContent = info.description;
+          layerEffects.innerHTML = info.effects
+            .map((effect) => `<li>${effect}</li>`)
+            .join("");
+        }
+
+        // Update visual preview based on layer type
+        updateVisualPreview(layerTypeValue);
+
+        // Update current parameters
+        updateCurrentParameters(layerTypeValue);
+      }
+
+      function updateVisualPreview(layerTypeValue) {
+        const previewKernel = document.getElementById("previewKernel");
+        const effectDemo = document.getElementById("effectDemo");
+
+        if (layerTypeValue === "conv") {
+          const kernelTypeValue = document.getElementById("kernelType").value;
+          const kernelInfo = getKernelVisualization(kernelTypeValue);
+
+          previewKernel.innerHTML = `
+             <div class="text-xs text-gray-600 mb-2">${
+               kernelTypeValue.charAt(0).toUpperCase() +
+               kernelTypeValue.slice(1)
+             } Kernel</div>
+             ${kernelInfo.html}
+           `;
+
+          const effectColors = {
+            default: { from: "blue-200", to: "blue-400", text: "Sharp" },
+            sharpen: { from: "blue-200", to: "blue-400", text: "Sharp" },
+            blur: { from: "gray-200", to: "gray-300", text: "Blur" },
+            gaussian: { from: "gray-200", to: "gray-300", text: "Smooth" },
+            sobel_x: { from: "purple-200", to: "purple-400", text: "V-Edge" },
+            sobel_y: { from: "green-200", to: "green-400", text: "H-Edge" },
+            laplacian: { from: "red-200", to: "red-400", text: "Edge" },
+            emboss: { from: "yellow-200", to: "yellow-400", text: "3D" },
+            edge_enhance: {
+              from: "orange-200",
+              to: "orange-400",
+              text: "Edge+",
+            },
+            identity: { from: "gray-200", to: "gray-400", text: "Same" },
+          };
+
+          const colors = effectColors[kernelTypeValue] || effectColors.default;
+          effectDemo.innerHTML = `
+             <div class="text-xs text-gray-600 mb-2">Expected Effect</div>
+             <div class="flex items-center space-x-2">
+               <div class="w-12 h-12 bg-gradient-to-br from-gray-200 to-gray-400 rounded border flex items-center justify-center text-xs">
+                 Input
+               </div>
+               <div class="text-blue-600">→</div>
+               <div class="w-12 h-12 bg-gradient-to-br from-${colors.from} to-${colors.to} rounded border flex items-center justify-center text-xs text-white">
+                 ${colors.text}
+               </div>
+             </div>
+           `;
+        } else if (
+          layerTypeValue === "maxpool" ||
+          layerTypeValue === "avgpool"
+        ) {
+          const kernelSize = document.getElementById("kernelSize").value;
+          const poolType = layerTypeValue === "maxpool" ? "Max" : "Avg";
+
+          previewKernel.innerHTML = `
+             <div class="text-xs text-gray-600 mb-2">${kernelSize}×${kernelSize} ${poolType} Pool</div>
+             <div class="grid grid-cols-${kernelSize} gap-1 w-16 h-16 mx-auto border-2 border-blue-300 rounded">
+               ${Array(parseInt(kernelSize) * parseInt(kernelSize))
+                 .fill(0)
+                 .map(
+                   () =>
+                     `<div class="bg-blue-100 border border-blue-200 flex items-center justify-center text-xs">⊡</div>`
+                 )
+                 .join("")}
+             </div>
+           `;
+
+          effectDemo.innerHTML = `
+             <div class="text-xs text-gray-600 mb-2">Downsampling Effect</div>
+             <div class="flex items-center space-x-2">
+               <div class="w-12 h-12 bg-gradient-to-br from-gray-200 to-gray-400 rounded border flex items-center justify-center text-xs">
+                 ${layerTypeValue === "maxpool" ? "100%" : "100%"}
+               </div>
+               <div class="text-blue-600">→</div>
+               <div class="w-8 h-8 bg-gradient-to-br from-indigo-200 to-indigo-400 rounded border flex items-center justify-center text-xs text-white">
+                 ${Math.round(
+                   100 /
+                     (parseInt(document.getElementById("stride").value) || 2)
+                 )}%
+               </div>
+             </div>
+           `;
+        } else if (layerTypeValue === "relu") {
+          previewKernel.innerHTML = `
+             <div class="text-xs text-gray-600 mb-2">ReLU Function</div>
+             <div class="w-20 h-12 mx-auto bg-gradient-to-r from-red-200 via-yellow-200 to-green-200 rounded border flex items-center justify-center text-xs">
+               f(x) = max(0,x)
+             </div>
+           `;
+
+          effectDemo.innerHTML = `
+             <div class="text-xs text-gray-600 mb-2">Activation Effect</div>
+             <div class="flex items-center space-x-2">
+               <div class="w-12 h-12 bg-gradient-to-br from-red-200 to-blue-200 rounded border flex items-center justify-center text-xs">
+                 ±Val
+               </div>
+               <div class="text-blue-600">→</div>
+               <div class="w-12 h-12 bg-gradient-to-br from-gray-200 to-green-400 rounded border flex items-center justify-center text-xs text-white">
+                 +Val
+               </div>
+             </div>
+           `;
+        } else if (layerTypeValue === "batchnorm") {
+          previewKernel.innerHTML = `
+             <div class="text-xs text-gray-600 mb-2">Normalization</div>
+             <div class="w-20 h-12 mx-auto bg-gradient-to-r from-purple-200 to-purple-300 rounded border flex items-center justify-center text-xs">
+               μ=0, σ=1
+             </div>
+           `;
+
+          effectDemo.innerHTML = `
+             <div class="text-xs text-gray-600 mb-2">Standardization</div>
+             <div class="flex items-center space-x-2">
+               <div class="w-12 h-12 bg-gradient-to-br from-orange-200 to-orange-400 rounded border flex items-center justify-center text-xs">
+                 Varied
+               </div>
+               <div class="text-blue-600">→</div>
+               <div class="w-12 h-12 bg-gradient-to-br from-purple-200 to-purple-400 rounded border flex items-center justify-center text-xs text-white">
+                 Norm
+               </div>
+             </div>
+           `;
+        } else if (layerTypeValue === "dropout") {
+          const dropRate = document.getElementById("dropoutRate").value;
+          previewKernel.innerHTML = `
+             <div class="text-xs text-gray-600 mb-2">Dropout Rate: ${dropRate}</div>
+             <div class="grid grid-cols-3 gap-1 w-16 h-16 mx-auto">
+               <div class="bg-green-200 border border-green-300 rounded"></div>
+               <div class="bg-red-200 border border-red-300 rounded"></div>
+               <div class="bg-green-200 border border-green-300 rounded"></div>
+               <div class="bg-green-200 border border-green-300 rounded"></div>
+               <div class="bg-red-200 border border-red-300 rounded"></div>
+               <div class="bg-green-200 border border-green-300 rounded"></div>
+               <div class="bg-red-200 border border-red-300 rounded"></div>
+               <div class="bg-green-200 border border-green-300 rounded"></div>
+               <div class="bg-green-200 border border-green-300 rounded"></div>
+             </div>
+           `;
+
+          effectDemo.innerHTML = `
+             <div class="text-xs text-gray-600 mb-2">Regularization</div>
+             <div class="flex items-center space-x-2">
+               <div class="w-12 h-12 bg-gradient-to-br from-blue-200 to-blue-400 rounded border flex items-center justify-center text-xs">
+                 Full
+               </div>
+               <div class="text-blue-600">→</div>
+               <div class="w-12 h-12 bg-gradient-to-br from-gray-200 to-blue-300 rounded border flex items-center justify-center text-xs text-white">
+                 ${Math.round((1 - parseFloat(dropRate)) * 100)}%
+               </div>
+             </div>
+           `;
+        }
+      }
+
+      function updateCurrentParameters(layerTypeValue) {
+        const currentParams = document.getElementById("currentParams");
+
+        if (layerTypeValue === "conv") {
+          const kernelType = document.getElementById("kernelType").value;
+          const stride = document.getElementById("stride").value;
+          const padding = document.getElementById("padding").value;
+
+          currentParams.innerHTML = `
+             <div>Kernel: <span class="font-mono">3×3 ${
+               kernelType.charAt(0).toUpperCase() + kernelType.slice(1)
+             }</span></div>
+             <div>Stride: <span class="font-mono">${stride}</span></div>
+             <div>Padding: <span class="font-mono">${padding}</span></div>
+           `;
+        } else if (
+          layerTypeValue === "maxpool" ||
+          layerTypeValue === "avgpool"
+        ) {
+          const kernelSize = document.getElementById("kernelSize").value;
+          const stride = document.getElementById("stride").value;
+          const padding = document.getElementById("padding").value;
+
+          currentParams.innerHTML = `
+             <div>Pool: <span class="font-mono">${kernelSize}×${kernelSize}</span></div>
+             <div>Stride: <span class="font-mono">${stride}</span></div>
+             <div>Padding: <span class="font-mono">${padding}</span></div>
+           `;
+        } else if (layerTypeValue === "dropout") {
+          const dropRate = document.getElementById("dropoutRate").value;
+
+          currentParams.innerHTML = `
+             <div>Rate: <span class="font-mono">${dropRate}</span></div>
+             <div>Keep: <span class="font-mono">${(
+               1 - parseFloat(dropRate)
+             ).toFixed(1)}</span></div>
+             <div>Mask: <span class="font-mono">Random</span></div>
+           `;
+        } else if (layerTypeValue === "relu") {
+          currentParams.innerHTML = `
+             <div>Function: <span class="font-mono">max(0, x)</span></div>
+             <div>Threshold: <span class="font-mono">0</span></div>
+             <div>Slope: <span class="font-mono">0 (neg)</span></div>
+           `;
+        } else if (layerTypeValue === "batchnorm") {
+          currentParams.innerHTML = `
+             <div>Mean: <span class="font-mono">0</span></div>
+             <div>Std: <span class="font-mono">1</span></div>
+             <div>Learnable: <span class="font-mono">γ, β</span></div>
+           `;
+        }
+      }
+
+      // Initialize
+      toggleLayerInputs();
+      updateProcessButton();
+      updateLayerPreview();
+    </script>
+  </body>
+</html>
