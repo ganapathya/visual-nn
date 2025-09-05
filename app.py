@@ -303,16 +303,75 @@ def get_template_suggestions(image_hash):
     return templates['default']
 
 @app.route('/', methods=['GET'])
+def index():
+    """Serve the main UI."""
+    try:
+        with open('index.html', 'r') as f:
+            return f.read()
+    except FileNotFoundError:
+        return "index.html not found. Please ensure it's in the same directory as app.py"
+
+@app.route('/health', methods=['GET'])
 def health_check():
     """Health check endpoint to confirm the server is running."""
     return "Visual-NN Lightweight Server with Gemini AI is running! 🧠✨"
 
+@app.route('/test-ai', methods=['GET'])
+def test_ai():
+    """Test if Gemini AI is working."""
+    api_key = os.environ.get('GEMINI_API_KEY')
+    if not api_key:
+        return jsonify({
+            'status': 'error',
+            'message': 'GEMINI_API_KEY not found in environment variables',
+            'ai_enabled': False
+        })
+    
+    try:
+        # Simple test prompt
+        response = model.generate_content("Say 'AI is working!' in one sentence.")
+        return jsonify({
+            'status': 'success',
+            'message': 'Gemini AI is working correctly!',
+            'response': response.text,
+            'ai_enabled': True
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': f'Gemini API error: {str(e)}',
+            'ai_enabled': False
+        })
+
+@app.route('/debug-routes', methods=['GET'])
+def debug_routes():
+    """Debug: Show all available routes."""
+    routes = []
+    for rule in app.url_map.iter_rules():
+        routes.append({
+            'endpoint': rule.endpoint,
+            'methods': list(rule.methods),
+            'rule': str(rule)
+        })
+    return jsonify({'routes': routes})
+
 @app.route('/analyze-image-ai', methods=['POST'])
 def analyze_image_ai():
     """NEW: AI analysis endpoint powered by Gemini"""
+    print(f"🔍 analyze-image-ai called - Method: {request.method}")
+    print(f"🔍 Content-Type: {request.content_type}")
+    print(f"🔍 Headers: {dict(request.headers)}")
+    
     try:
         data = request.get_json()
+        print(f"🔍 JSON data received: {data is not None}")
+        
+        if data is None:
+            print("❌ No JSON data received")
+            return jsonify({'error': 'No JSON data received'}), 400
+            
         image_base64 = data.get('image_base64')
+        print(f"🔍 Image data length: {len(image_base64) if image_base64 else 0}")
         
         if not image_base64:
             return jsonify({'error': 'No image_base64 provided'}), 400

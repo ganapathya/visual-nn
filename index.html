@@ -6,6 +6,8 @@
     <title>Visual Neural Network - Layer Processing</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Configuration Script -->
+    <script src="config.js"></script>
     <style>
       .canvas-container {
         border: 2px solid #e5e7eb;
@@ -815,6 +817,27 @@
     </div>
 
     <script>
+      // Configuration - can be overridden by environment variables
+      const CONFIG = {
+        // Auto-detect backend URL with fallback to port 5001
+        API_BASE_URL: (() => {
+          // Check if backend port is set via global variable
+          if (window.BACKEND_PORT) {
+            return `${window.location.protocol}//${window.location.hostname}:${window.BACKEND_PORT}`;
+          }
+
+          // Check if backend URL is set via global variable
+          if (window.BACKEND_URL) {
+            return window.BACKEND_URL;
+          }
+
+          // Default fallback
+          return `${window.location.protocol}//${window.location.hostname}:5001`;
+        })(),
+      };
+
+      console.log(`🔧 API Base URL: ${CONFIG.API_BASE_URL}`);
+
       // Global variables
       let layers = [];
       let currentImageBase64 = null;
@@ -1106,17 +1129,20 @@
 
         try {
           // Make fetch POST request to backend's /process-layers endpoint
-          const response = await fetch("/process-layers", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              image_base64: currentImageBase64,
-              layers: layers,
-              ai_insights: true,
-            }),
-          });
+          const response = await fetch(
+            `${CONFIG.API_BASE_URL}/process-layers`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                image_base64: currentImageBase64,
+                layers: layers,
+                ai_insights: true,
+              }),
+            }
+          );
 
           const data = await response.json();
 
@@ -2096,11 +2122,14 @@
         `;
 
         try {
-          const response = await fetch("/analyze-image-ai", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ image_base64: currentImageBase64 }),
-          });
+          const response = await fetch(
+            `${CONFIG.API_BASE_URL}/analyze-image-ai`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ image_base64: currentImageBase64 }),
+            }
+          );
 
           const suggestions = await response.json();
 
