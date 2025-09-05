@@ -6,6 +6,13 @@ An interactive web application for visualizing and understanding how Convolution
 
 ## ✨ Features
 
+### 🧠 **AI-Powered Architecture Designer**
+
+- **Smart layer suggestions** powered by Google Gemini AI
+- **Content-aware recommendations** based on image analysis
+- **Real-time AI explanations** for each layer's effect
+- **Intelligent tutoring** with personalized guidance
+
 ### 🎯 **Interactive CNN Visualization**
 
 - **Real-time layer processing** with immediate visual feedback
@@ -30,9 +37,11 @@ An interactive web application for visualizing and understanding how Convolution
 
 ### 🔧 **Technical Capabilities**
 
-- **PyTorch backend** for accurate CNN operations
+- **Lightweight NumPy/SciPy backend** optimized for t3.micro deployment
+- **Google Gemini AI integration** for intelligent suggestions
 - **Real-time image processing** via Flask API
 - **Responsive web interface** built with Tailwind CSS
+- **Memory-optimized operations** for low-resource environments
 - **Support for custom parameters** (stride, padding, kernel types)
 
 ## 🚀 Quick Start
@@ -41,8 +50,28 @@ An interactive web application for visualizing and understanding how Convolution
 
 - Python 3.7+
 - `uv` package manager (recommended) or `pip`
+- Google Gemini API key (get from [Google AI Studio](https://makersuite.google.com/app/apikey))
 
-### Installation
+### Quick Setup
+
+```bash
+# Clone and setup
+git clone https://github.com/your-username/visual-nn.git
+cd visual-nn
+
+# Run the automated setup
+./setup_lightweight.sh
+
+# Set your Gemini API key
+export GEMINI_API_KEY="your_api_key_here"
+
+# Start the server
+python app.py
+```
+
+Open `http://localhost:5001` to start using Visual Neural Network with AI!
+
+### Manual Installation
 
 1. **Clone the repository**
 
@@ -61,7 +90,18 @@ An interactive web application for visualizing and understanding how Convolution
    pip install -r requirements.txt
    ```
 
-3. **Start the Flask server**
+3. **Configure environment**
+
+   ```bash
+   # Copy environment template
+   cp env.example .env
+
+   # Edit .env and add your GEMINI_API_KEY
+   # Or export directly:
+   export GEMINI_API_KEY="your_api_key_here"
+   ```
+
+4. **Start the Flask server**
 
    ```bash
    python app.py
@@ -69,7 +109,7 @@ An interactive web application for visualizing and understanding how Convolution
 
    The server will start on `http://localhost:5001`
 
-4. **Open the application**
+5. **Open the application**
    - Open `index.html` in your web browser
    - Or visit the served HTML if you set up a web server
 
@@ -177,11 +217,19 @@ visual-nn/
 
 This tool is designed for:
 
-- **Students** learning computer vision and deep learning
-- **Educators** teaching CNN concepts with visual aids
-- **Researchers** prototyping and visualizing CNN architectures
-- **Developers** understanding layer-by-layer transformations
-- **Anyone curious** about how neural networks process images
+- **Students** learning computer vision and deep learning with AI guidance
+- **Educators** teaching CNN concepts with intelligent tutoring assistance
+- **Researchers** prototyping architectures with AI-powered suggestions
+- **Developers** understanding layer-by-layer transformations with explanations
+- **Anyone curious** about how neural networks and AI work together
+
+### 🤖 AI Features in Detail
+
+- **Smart Architecture Designer**: Gemini AI analyzes your uploaded image and suggests optimal layer sequences
+- **Content-Aware Recommendations**: Different suggestions for portraits, landscapes, text, and abstract images
+- **Real-time Explanations**: AI explains what each layer does to your specific image
+- **Intelligent Tutoring**: Personalized guidance based on your current architecture
+- **Fallback Support**: Works perfectly even without AI - degrades gracefully to manual mode
 
 ## 🛠️ Development
 

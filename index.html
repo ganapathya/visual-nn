@@ -327,6 +327,81 @@
         </div>
       </div>
 
+      <!-- AI Architecture Suggestions Section -->
+      <div
+        class="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg shadow-md p-6 mb-8 border border-blue-200"
+      >
+        <h2 class="text-2xl font-semibold text-gray-800 mb-4 flex items-center">
+          🧠 AI Architecture Suggestions
+          <span
+            class="ml-3 text-sm bg-blue-100 text-blue-800 px-3 py-1 rounded-full"
+          >
+            Powered by Gemini
+          </span>
+        </h2>
+
+        <!-- AI Status -->
+        <div id="ai-status" class="mb-4">
+          <div class="text-gray-500 text-center py-4">
+            <span class="text-2xl">📸</span>
+            <p class="mt-2">
+              Upload an image to get AI-powered architecture suggestions
+            </p>
+          </div>
+        </div>
+
+        <!-- AI Analysis Results -->
+        <div id="ai-analysis-results" class="hidden">
+          <!-- Image Analysis -->
+          <div class="bg-blue-50 p-4 rounded-lg mb-4 border border-blue-200">
+            <h3 class="font-semibold mb-2 text-blue-800 flex items-center">
+              📸 Image Analysis
+            </h3>
+            <div id="image-analysis" class="text-sm text-gray-700"></div>
+          </div>
+
+          <!-- Suggested Architecture -->
+          <div class="bg-green-50 p-4 rounded-lg mb-4 border border-green-200">
+            <h3 class="font-semibold mb-3 text-green-800 flex items-center">
+              🎯 Recommended Architecture
+            </h3>
+            <div id="suggested-layers-preview" class="space-y-3"></div>
+          </div>
+
+          <!-- Expected Outcome -->
+          <div
+            class="bg-purple-50 p-4 rounded-lg mb-4 border border-purple-200"
+          >
+            <h3 class="font-semibold mb-2 text-purple-800 flex items-center">
+              🎨 Expected Outcome
+            </h3>
+            <div id="expected-outcome" class="text-sm text-gray-700"></div>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="flex gap-3 justify-center">
+            <button
+              id="apply-all-suggestions"
+              class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition duration-200 flex items-center"
+            >
+              ✨ Apply All Suggestions
+            </button>
+            <button
+              id="apply-one-by-one"
+              class="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition duration-200 flex items-center"
+            >
+              🔧 Add One by One
+            </button>
+            <button
+              id="get-new-suggestions"
+              class="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 transition duration-200 flex items-center"
+            >
+              🔄 Get New Suggestions
+            </button>
+          </div>
+        </div>
+      </div>
+
       <!-- Add Layer Section -->
       <div class="bg-white rounded-lg shadow-md p-6 mb-8">
         <h2 class="text-2xl font-semibold text-gray-800 mb-4">Add Layer</h2>
@@ -597,6 +672,11 @@
                 <th
                   class="px-4 py-2 text-left text-sm font-medium text-gray-700"
                 >
+                  🤖 AI
+                </th>
+                <th
+                  class="px-4 py-2 text-left text-sm font-medium text-gray-700"
+                >
                   Layer
                 </th>
                 <th
@@ -633,7 +713,7 @@
             </thead>
             <tbody id="architectureTable" class="divide-y divide-gray-200">
               <tr id="noLayersRow">
-                <td colspan="7" class="px-4 py-8 text-center text-gray-500">
+                <td colspan="8" class="px-4 py-8 text-center text-gray-500">
                   No layers added yet
                 </td>
               </tr>
@@ -738,6 +818,8 @@
       // Global variables
       let layers = [];
       let currentImageBase64 = null;
+      let currentAISuggestions = null;
+      let currentSuggestionIndex = 0;
 
       // DOM elements
       const imageUpload = document.getElementById("imageUpload");
@@ -838,6 +920,9 @@
             uploadPlaceholder.style.display = "none";
 
             updateProcessButton();
+
+            // Trigger AI analysis
+            analyzeImageWithAI();
           };
           img.src = e.target.result;
         };
@@ -961,11 +1046,24 @@
           const row = document.createElement("tr");
           row.className = "hover:bg-gray-50";
           row.innerHTML = `
+                    <td class="px-4 py-2 text-sm text-center">
+                      ${
+                        layer.ai_suggested
+                          ? '<span class="text-blue-600 text-lg" title="AI Suggested">🧠</span>'
+                          : '<span class="text-gray-300 text-lg">👤</span>'
+                      }
+                    </td>
                     <td class="px-4 py-2 text-sm text-gray-900">${
                       index + 1
                     }</td>
                     <td class="px-4 py-2 text-sm text-gray-900">${
-                      layer.type === "conv" ? "Conv2D" : "Max-Pool"
+                      layer.type === "conv"
+                        ? "Conv2D"
+                        : layer.type === "maxpool"
+                        ? "Max-Pool"
+                        : layer.type === "avgpool"
+                        ? "Avg-Pool"
+                        : layer.type.toUpperCase()
                     }</td>
                     <td class="px-4 py-2 text-sm text-gray-900">${
                       layer.kernel_display
@@ -1008,7 +1106,7 @@
 
         try {
           // Make fetch POST request to backend's /process-layers endpoint
-          const response = await fetch("http://localhost:5001/process-layers", {
+          const response = await fetch("/process-layers", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -1016,6 +1114,7 @@
             body: JSON.stringify({
               image_base64: currentImageBase64,
               layers: layers,
+              ai_insights: true,
             }),
           });
 
@@ -1243,6 +1342,29 @@
               }</strong>
               ${getLayerExplanation(result.layer_type, layers[index])}
             </div>
+            
+            ${
+              result.ai_insight
+                ? `
+              <div class="bg-gradient-to-r from-blue-50 to-purple-50 p-3 rounded-lg border border-blue-200 mt-2">
+                <div class="flex items-center mb-2">
+                  <span class="text-blue-600 mr-2">🧠</span>
+                  <strong class="text-blue-800">AI Insight</strong>
+                </div>
+                <p class="text-sm text-gray-700 mb-2">${result.ai_insight}</p>
+                ${
+                  result.technical_details
+                    ? `
+                  <div class="text-xs text-gray-600 border-t border-blue-200 pt-2">
+                    <strong>Technical:</strong> ${result.technical_details}
+                  </div>
+                `
+                    : ""
+                }
+              </div>
+            `
+                : ""
+            }
           `;
 
           container.appendChild(info);
@@ -1954,6 +2076,214 @@
            `;
         }
       }
+
+      // ==========================
+      // AI ANALYSIS FUNCTIONS
+      // ==========================
+
+      async function analyzeImageWithAI() {
+        if (!currentImageBase64) return;
+
+        const aiStatus = document.getElementById("ai-status");
+        const aiResults = document.getElementById("ai-analysis-results");
+
+        // Show loading state
+        aiStatus.innerHTML = `
+          <div class="text-blue-600 text-center py-4 flex items-center justify-center">
+            <span class="animate-spin text-2xl mr-2">🧠</span>
+            <p>Analyzing image with Gemini AI...</p>
+          </div>
+        `;
+
+        try {
+          const response = await fetch("/analyze-image-ai", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ image_base64: currentImageBase64 }),
+          });
+
+          const suggestions = await response.json();
+
+          if (suggestions.error) {
+            throw new Error(suggestions.error);
+          }
+
+          currentAISuggestions = suggestions;
+          displayAISuggestions(suggestions);
+        } catch (error) {
+          console.error("AI analysis failed:", error);
+
+          // Show fallback state
+          aiStatus.innerHTML = `
+            <div class="text-gray-500 text-center py-4">
+              <span class="text-2xl">⚠️</span>
+              <p class="mt-2">AI analysis temporarily unavailable</p>
+              <p class="text-sm">You can still add layers manually</p>
+            </div>
+          `;
+        }
+      }
+
+      function displayAISuggestions(suggestions) {
+        const aiStatus = document.getElementById("ai-status");
+        const aiResults = document.getElementById("ai-analysis-results");
+
+        // Hide loading, show results
+        aiStatus.style.display = "none";
+        aiResults.classList.remove("hidden");
+
+        // Populate image analysis
+        document.getElementById("image-analysis").innerHTML = `
+          <div class="flex items-center space-x-4">
+            <div><strong>Type:</strong> ${suggestions.image_type}</div>
+            <div><strong>Quality:</strong> ${suggestions.quality_assessment}</div>
+          </div>
+        `;
+
+        // Populate suggested layers
+        const layersPreview = document.getElementById(
+          "suggested-layers-preview"
+        );
+        layersPreview.innerHTML = suggestions.suggested_layers
+          .map(
+            (layer, index) => `
+          <div class="bg-white p-3 rounded-lg border-l-4 border-green-500 shadow-sm">
+            <div class="flex justify-between items-center">
+              <div class="flex items-center space-x-3">
+                <span class="bg-green-100 text-green-800 px-2 py-1 rounded text-sm font-semibold">
+                  ${index + 1}
+                </span>
+                <div>
+                  <span class="font-medium">${layer.type.toUpperCase()}</span>
+                  ${
+                    layer.kernel
+                      ? `<span class="text-sm text-gray-600 ml-2">Kernel: ${layer.kernel}</span>`
+                      : ""
+                  }
+                </div>
+              </div>
+              <button onclick="addSuggestedLayer(${index})" 
+                      class="bg-green-500 text-white px-3 py-1 rounded-md text-sm hover:bg-green-600 transition duration-200">
+                Add Layer
+              </button>
+            </div>
+            <p class="text-sm text-gray-700 mt-2 italic">${layer.reasoning}</p>
+          </div>
+        `
+          )
+          .join("");
+
+        // Populate expected outcome
+        document.getElementById("expected-outcome").textContent =
+          suggestions.expected_outcome;
+      }
+
+      function addSuggestedLayer(index) {
+        if (
+          !currentAISuggestions ||
+          !currentAISuggestions.suggested_layers[index]
+        )
+          return;
+
+        const suggestion = currentAISuggestions.suggested_layers[index];
+
+        // Map AI suggestion to layer format
+        const layer = {
+          type: suggestion.type,
+          ai_suggested: true,
+        };
+
+        // Add type-specific parameters
+        if (suggestion.type === "conv") {
+          layer.kernel_type = suggestion.kernel || "sharpen";
+          layer.stride = suggestion.stride || 1;
+          layer.padding = suggestion.padding || 1;
+          layer.out_channels = suggestion.out_channels || 3;
+        } else if (
+          suggestion.type === "maxpool" ||
+          suggestion.type === "avgpool"
+        ) {
+          layer.kernel_size = suggestion.kernel_size || 2;
+          layer.stride = suggestion.stride || 2;
+          layer.padding = suggestion.padding || 0;
+        } else if (suggestion.type === "dropout") {
+          layer.dropout_rate = suggestion.dropout_rate || 0.1;
+        }
+
+        // Add to layers array
+        layers.push(layer);
+
+        // Update UI
+        updateArchitectureTable();
+        updateProcessButton();
+
+        // Auto-process if image exists
+        if (currentImageBase64) {
+          processLayersRequest();
+        }
+
+        // Visual feedback
+        const button = event.target;
+        const originalText = button.textContent;
+        button.textContent = "✓ Added";
+        button.classList.remove("bg-green-500", "hover:bg-green-600");
+        button.classList.add("bg-gray-400");
+        button.disabled = true;
+
+        setTimeout(() => {
+          button.textContent = originalText;
+          button.classList.remove("bg-gray-400");
+          button.classList.add("bg-green-500", "hover:bg-green-600");
+          button.disabled = false;
+        }, 2000);
+      }
+
+      function applyAllSuggestions() {
+        if (!currentAISuggestions) return;
+
+        currentAISuggestions.suggested_layers.forEach((_, index) => {
+          addSuggestedLayer(index);
+        });
+      }
+
+      function applyOneByOne() {
+        if (
+          !currentAISuggestions ||
+          currentSuggestionIndex >= currentAISuggestions.suggested_layers.length
+        ) {
+          currentSuggestionIndex = 0;
+          return;
+        }
+
+        addSuggestedLayer(currentSuggestionIndex);
+        currentSuggestionIndex++;
+      }
+
+      function getNewSuggestions() {
+        if (currentImageBase64) {
+          // Reset state and get fresh suggestions
+          currentAISuggestions = null;
+          document.getElementById("ai-status").style.display = "block";
+          document
+            .getElementById("ai-analysis-results")
+            .classList.add("hidden");
+          analyzeImageWithAI();
+        }
+      }
+
+      // ==========================
+      // EVENT LISTENERS FOR AI
+      // ==========================
+
+      document
+        .getElementById("apply-all-suggestions")
+        .addEventListener("click", applyAllSuggestions);
+      document
+        .getElementById("apply-one-by-one")
+        .addEventListener("click", applyOneByOne);
+      document
+        .getElementById("get-new-suggestions")
+        .addEventListener("click", getNewSuggestions);
 
       // Initialize
       toggleLayerInputs();

@@ -1,0 +1,16 @@
+# Minimal requirements for EC2 free tier (no PyTorch)
+# Uses scikit-image for convolution operations
+
+# Core web framework
+Flask>=2.3.0
+Flask-CORS>=6.0.0
+
+# Image processing (lightweight alternatives to PyTorch)
+scikit-image>=0.20.0
+Pillow>=10.0.0
+numpy>=1.24.0
+
+# Production server
+gunicorn>=21.0.0
+
+# Total size: ~50MB instead of ~3GB

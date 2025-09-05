@@ -34,11 +34,13 @@ class ProductionConfig(Config):
     """Production configuration."""
     DEBUG = False
     AUTO_RELOAD = False
-    SECRET_KEY = os.environ.get('SECRET_KEY')
     
-    # Ensure secret key is set in production
-    if not SECRET_KEY:
-        raise ValueError("SECRET_KEY environment variable must be set in production")
+    @property
+    def SECRET_KEY(self):
+        secret_key = os.environ.get('SECRET_KEY')
+        if not secret_key:
+            raise ValueError("SECRET_KEY environment variable must be set in production")
+        return secret_key
 
 class TestingConfig(Config):
     """Testing configuration."""
